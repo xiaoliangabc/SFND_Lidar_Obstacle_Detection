@@ -28,12 +28,33 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     auto startTime = std::chrono::steady_clock::now();
 
     // TODO:: Fill in the function to do voxel grid point reduction and region based filtering
+    // Voxel grid point reduction
+    typename pcl::VoxelGrid<PointT> voxel_grid;
+    typename pcl::PointCloud<PointT>::Ptr voxel_cloud(new pcl::PointCloud<PointT>);
+    voxel_grid.setInputCloud(cloud);
+    voxel_grid.setLeafSize(filterRes, filterRes, filterRes);
+    voxel_grid.filter(*voxel_cloud);
+    // Region based filtering
+    typename pcl::CropBox<PointT> crop_box;
+    typename pcl::PointCloud<PointT>::Ptr box_cloud(new pcl::PointCloud<PointT>);
+    crop_box.setInputCloud(voxel_cloud);
+    crop_box.setMin(minPoint);
+    crop_box.setMax(maxPoint);
+    crop_box.filter(*box_cloud);
+    // Remove points that are hitting the roof of the ego car
+    typename pcl::CropBox<PointT> crop_box_ego;
+    typename pcl::PointCloud<PointT>::Ptr out_cloud(new pcl::PointCloud<PointT>);
+    crop_box_ego.setInputCloud(box_cloud);
+    crop_box_ego.setNegative(true);
+    crop_box_ego.setMin(Eigen::Vector4f (-2.0, -2.0, -2.0, 1));
+    crop_box_ego.setMax(Eigen::Vector4f (3.0, 2.0, 1.0, 1));
+    crop_box_ego.filter(*out_cloud);
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    return cloud;
+    return out_cloud;
 
 }
 
